@@ -520,8 +520,11 @@ impl SimpleQueryHandler for DfSessionService {
             };
 
             if query_lower.starts_with("insert into") {
-                let resp = map_rows_affected_for_insert(&df).await?;
-                results.push(resp);
+                results.push(map_rows_affected(&df, "INSERT").await?);
+            } else if query.starts_with("update ") {
+                results.push(map_rows_affected(&df, "UPDATE").await?);
+            } else if query.starts_with("delete ") {
+                results.push(map_rows_affected(&df, "DELETE").await?);
             } else {
                 // For non-INSERT queries, return a regular Query response
                 let resp = df::encode_dataframe(df, &Format::UnifiedText).await?;
@@ -687,9 +690,11 @@ impl ExtendedQueryHandler for DfSessionService {
             };
 
             if query.starts_with("insert into") {
-                let resp = map_rows_affected_for_insert(&dataframe).await?;
-
-                Ok(resp)
+                Ok(map_rows_affected(&dataframe, "INSERT").await?)
+            } else if query.starts_with("update ") {
+                Ok(map_rows_affected(&dataframe, "UPDATE").await?)
+            } else if query.starts_with("delete ") {
+                Ok(map_rows_affected(&dataframe, "DELETE").await?)
             } else {
                 // For non-INSERT queries, return a regular Query response
                 let resp = df::encode_dataframe(dataframe, &portal.result_column_format).await?;
@@ -701,8 +706,8 @@ impl ExtendedQueryHandler for DfSessionService {
     }
 }
 
-async fn map_rows_affected_for_insert(df: &DataFrame) -> PgWireResult<Response> {
-    // For INSERT queries, we need to execute the query to get the row count
+async fn map_rows_affected(df: &DataFrame, tag: &str) -> PgWireResult<Response> {
+    // For DML queries, we need to execute the query to get the row count
     // and return an Execution response with the proper tag
     let result = df
         .clone()
@@ -720,8 +725,8 @@ async fn map_rows_affected_for_insert(df: &DataFrame) -> PgWireResult<Response> 
         })
         .map_or(0, |array| array.value(0) as usize);
 
-    // Create INSERT tag with the affected row count
-    let tag = Tag::new("INSERT").with_oid(0).with_rows(rows_affected);
+    // Create appropraite tag with the affected row count
+    let tag = Tag::new(tag).with_oid(0).with_rows(rows_affected);
     Ok(Response::Execution(tag))
 }
 
