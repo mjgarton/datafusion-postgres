@@ -1405,6 +1405,63 @@ pub fn create_pg_get_constraintdef() -> ScalarUDF {
     GetConstraintDefUDF::new().into()
 }
 
+pub fn create_pg_get_indexdef() -> ScalarUDF {
+    #[derive(Debug, PartialEq, Eq, Hash)]
+    struct GetIndexDefUDF {
+        signature: Signature,
+    }
+
+    impl GetIndexDefUDF {
+        fn new() -> Self {
+            let type_signature = TypeSignature::OneOf(vec![
+                TypeSignature::Exact(vec![DataType::Int32]),
+                TypeSignature::Exact(vec![DataType::Int32, DataType::Int64]),
+                TypeSignature::Exact(vec![DataType::Int32, DataType::Int64, DataType::Boolean]),
+            ]);
+
+            let signature = Signature::new(type_signature, Volatility::Stable);
+            GetIndexDefUDF { signature }
+        }
+    }
+
+    impl ScalarUDFImpl for GetIndexDefUDF {
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
+
+        fn name(&self) -> &str {
+            "pg_get_indexdef"
+        }
+
+        fn signature(&self) -> &Signature {
+            &self.signature
+        }
+
+        fn return_type(&self, _arg_types: &[DataType]) -> Result<DataType> {
+            Ok(DataType::Utf8)
+        }
+
+        fn invoke_with_args(
+            &self,
+            args: datafusion::logical_expr::ScalarFunctionArgs,
+        ) -> Result<ColumnarValue> {
+            let args = ColumnarValue::values_to_arrays(&args.args)?;
+            let oids = &args[0].as_primitive::<Int32Type>();
+
+            let mut builder = StringBuilder::new();
+            for _ in 0..oids.len() {
+                builder.append_value("YING");
+            }
+
+            let array: ArrayRef = Arc::new(builder.finish());
+            Ok(ColumnarValue::Array(array))
+        }
+    }
+
+    GetIndexDefUDF::new().into()
+}
+
+
 pub fn create_pg_get_partition_ancestors_udf() -> ScalarUDF {
     let func = move |args: &[ColumnarValue]| {
         let args = ColumnarValue::values_to_arrays(args)?;
@@ -1481,6 +1538,7 @@ where
     session_context.register_udf(create_pg_total_relation_size_udf());
     session_context.register_udf(create_pg_stat_get_numscans());
     session_context.register_udf(create_pg_get_constraintdef());
+    session_context.register_udf(create_pg_get_indexdef());
     session_context.register_udf(create_pg_get_partition_ancestors_udf());
     session_context.register_udf(quote_ident_udf::create_quote_ident_udf());
     session_context.register_udf(quote_ident_udf::create_parse_ident_udf());

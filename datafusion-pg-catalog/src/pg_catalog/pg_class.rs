@@ -187,7 +187,7 @@ impl<C: CatalogInfo> PgClassTable<C> {
                                 reltuples.push(0.0); // No row count stats
                                 relallvisibles.push(0);
                                 reltoastrelids.push(0);
-                                relhasindexes.push(false);
+                                relhasindexes.push(true);
                                 relisshareds.push(false);
                                 relpersistences.push("p".to_string()); // Permanent
                                 relkinds.push(table_type_to_string(&table_type));
